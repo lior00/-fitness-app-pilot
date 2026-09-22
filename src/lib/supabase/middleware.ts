@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/signup", "/auth/callback"];
+const ONBOARDING_PATH = "/onboarding";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -41,10 +42,38 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && (request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
+  if (user) {
+    const isAuthPage =
+      request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/signup";
+
+    if (isAuthPage || !isPublicPath) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("onboarding_completed_at")
+        .eq("id", user.id)
+        .single();
+
+      const onboardingComplete = Boolean(profile?.onboarding_completed_at);
+      const onOnboardingPath = request.nextUrl.pathname === ONBOARDING_PATH;
+
+      if (isAuthPage) {
+        const url = request.nextUrl.clone();
+        url.pathname = onboardingComplete ? "/dashboard" : ONBOARDING_PATH;
+        return NextResponse.redirect(url);
+      }
+
+      if (!onboardingComplete && !onOnboardingPath) {
+        const url = request.nextUrl.clone();
+        url.pathname = ONBOARDING_PATH;
+        return NextResponse.redirect(url);
+      }
+
+      if (onboardingComplete && onOnboardingPath) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/dashboard";
+        return NextResponse.redirect(url);
+      }
+    }
   }
 
   return supabaseResponse;
