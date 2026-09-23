@@ -31,9 +31,16 @@ export function LogFoodForm({ initialDate }: { initialDate: string }) {
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
 
+  function selectFood(food: NormalizedFood) {
+    setSelected(food);
+    setQuantityG(
+      food.defaultPortionG ? String(Math.round(food.defaultPortionG)) : "100",
+    );
+  }
+
   function handleManualSubmit() {
     if (!manualName.trim() || !manualCalories.trim()) return;
-    setSelected({
+    selectFood({
       source: "custom",
       name: manualName.trim(),
       caloriesPer100g: Number(manualCalories) || 0,
@@ -62,7 +69,7 @@ export function LogFoodForm({ initialDate }: { initialDate: string }) {
       <div className="space-y-4">
         {!manualMode ? (
           <>
-            <FoodSearch onSelect={setSelected} />
+            <FoodSearch onSelect={selectFood} />
             <button
               type="button"
               className="text-sm text-neutral-500 underline"

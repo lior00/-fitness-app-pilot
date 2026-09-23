@@ -18,7 +18,8 @@ export function NewMealForm() {
   const [pending, startTransition] = useTransition();
 
   function addIngredient(food: NormalizedFood) {
-    setIngredients((prev) => [...prev, { food, quantityG: "100" }]);
+    const quantityG = food.defaultPortionG ? String(Math.round(food.defaultPortionG)) : "100";
+    setIngredients((prev) => [...prev, { food, quantityG }]);
     setAddingIngredient(false);
   }
 

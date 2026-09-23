@@ -20,6 +20,9 @@ type FdcFood = {
   brandOwner?: string;
   foodNutrients: FdcNutrient[];
   foodPortions?: FdcFoodPortion[];
+  servingSize?: number;
+  servingSizeUnit?: string;
+  householdServingFullText?: string;
 };
 
 // Generic/raw ingredients (Foundation, SR Legacy) before packaged products
@@ -52,6 +55,18 @@ function calorieValue(nutrients: FdcNutrient[]): number {
   return 0;
 }
 
+// USDA's search endpoint reports Branded-food nutrients as already scaled to
+// the product's serving size (not per 100g like Foundation/SR Legacy), and
+// doesn't populate foodPortions for them either. Convert servingSize/unit to
+// grams so we can normalize back to a true per-100g basis.
+function servingSizeGrams(food: FdcFood): number | undefined {
+  if (!food.servingSize || !food.servingSizeUnit) return undefined;
+  const unit = food.servingSizeUnit.toLowerCase();
+  if (unit === "g" || unit === "ml") return food.servingSize;
+  if (unit === "oz") return food.servingSize * 28.3495;
+  return undefined;
+}
+
 export async function searchUsda(query: string): Promise<NormalizedFood[]> {
   const apiKey = process.env.FDC_API_KEY;
   if (!apiKey) return [];
@@ -74,16 +89,40 @@ export async function searchUsda(query: string): Promise<NormalizedFood[]> {
   );
 
   return foods.map((food) => {
+    const rawCalories = calorieValue(food.foodNutrients);
+    const rawProtein = nutrientValue(food.foodNutrients, NUTRIENT_IDS.protein);
+    const rawCarbs = nutrientValue(food.foodNutrients, NUTRIENT_IDS.carbs);
+    const rawFat = nutrientValue(food.foodNutrients, NUTRIENT_IDS.fat);
+
+    if (food.dataType === "Branded") {
+      const servingGrams = servingSizeGrams(food);
+      const scale = servingGrams ? 100 / servingGrams : 1;
+      return {
+        source: "usda" as const,
+        externalId: String(food.fdcId),
+        name: food.description,
+        brand: food.brandName || food.brandOwner || undefined,
+        caloriesPer100g: rawCalories * scale,
+        proteinPer100g: rawProtein * scale,
+        carbsPer100g: rawCarbs * scale,
+        fatPer100g: rawFat * scale,
+        defaultPortionG: servingGrams,
+        defaultPortionLabel:
+          food.householdServingFullText ||
+          (servingGrams ? `${Math.round(servingGrams)}g` : undefined),
+      };
+    }
+
     const portion = food.foodPortions?.[0];
     return {
       source: "usda" as const,
       externalId: String(food.fdcId),
       name: food.description,
       brand: food.brandName || food.brandOwner || undefined,
-      caloriesPer100g: calorieValue(food.foodNutrients),
-      proteinPer100g: nutrientValue(food.foodNutrients, NUTRIENT_IDS.protein),
-      carbsPer100g: nutrientValue(food.foodNutrients, NUTRIENT_IDS.carbs),
-      fatPer100g: nutrientValue(food.foodNutrients, NUTRIENT_IDS.fat),
+      caloriesPer100g: rawCalories,
+      proteinPer100g: rawProtein,
+      carbsPer100g: rawCarbs,
+      fatPer100g: rawFat,
       defaultPortionG: portion?.gramWeight,
       defaultPortionLabel:
         portion && (portion.modifier || portion.portionDescription)
