@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { todayIso } from "@/lib/date";
 import { signout } from "./actions";
 
 export default async function DashboardPage() {
@@ -22,15 +23,17 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("target_calories")
-    .eq("id", user.id)
-    .single();
+  const [{ data: profile }, { data: todayLogs }] = await Promise.all([
+    supabase.from("profiles").select("target_calories").eq("id", user.id).single(),
+    supabase
+      .from("food_logs")
+      .select("calories")
+      .eq("user_id", user.id)
+      .eq("logged_date", todayIso()),
+  ]);
 
   const targetCalories = profile?.target_calories ?? 0;
-  // No meal-tracking data exists yet, so nothing has been logged today.
-  const caloriesConsumed = 0;
+  const caloriesConsumed = (todayLogs ?? []).reduce((sum, log) => sum + log.calories, 0);
   const caloriesRemaining = targetCalories - caloriesConsumed;
   const progressPercent =
     targetCalories > 0 ? Math.min(100, (caloriesConsumed / targetCalories) * 100) : 0;
