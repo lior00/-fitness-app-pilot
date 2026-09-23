@@ -5,6 +5,24 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import type { NormalizedFood } from "@/lib/food-sources/types";
 
+const SOURCE_LABELS: Record<NormalizedFood["source"], string> = {
+  usda: "USDA",
+  off: "OFF",
+  il: "IL",
+  custom: "Custom",
+};
+
+export function calorieDisplay(food: NormalizedFood): string {
+  if (food.defaultPortionG) {
+    const servingCalories = Math.round(
+      (food.caloriesPer100g * food.defaultPortionG) / 100,
+    );
+    const label = food.defaultPortionLabel ?? `${Math.round(food.defaultPortionG)}g`;
+    return `${servingCalories} kcal / ${label}`;
+  }
+  return `${Math.round(food.caloriesPer100g)} kcal / 100g`;
+}
+
 export function FoodSearch({ onSelect }: { onSelect: (food: NormalizedFood) => void }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<NormalizedFood[]>([]);
@@ -68,11 +86,9 @@ export function FoodSearch({ onSelect }: { onSelect: (food: NormalizedFood) => v
               {food.brand && (
                 <span className="block text-neutral-500">{food.brand}</span>
               )}
-              <span className="block text-neutral-500">
-                {Math.round(food.caloriesPer100g)} kcal / 100g
-              </span>
+              <span className="block text-neutral-500">{calorieDisplay(food)}</span>
             </span>
-            <Badge variant="outline">{food.source === "usda" ? "USDA" : "OFF"}</Badge>
+            <Badge variant="outline">{SOURCE_LABELS[food.source]}</Badge>
           </button>
         ))}
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { FoodSearch } from "@/components/food-search";
+import { calorieDisplay, FoodSearch } from "@/components/food-search";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,7 @@ export function LogFoodForm({ initialDate }: { initialDate: string }) {
   const [manualCarbs, setManualCarbs] = useState("");
   const [manualFat, setManualFat] = useState("");
 
-  const [quantityG, setQuantityG] = useState("100");
+  const [quantityG, setQuantityG] = useState("");
   const [mealType, setMealType] = useState<MealType>("snack");
   const [date, setDate] = useState(initialDate);
   const [error, setError] = useState<string>();
@@ -33,9 +33,7 @@ export function LogFoodForm({ initialDate }: { initialDate: string }) {
 
   function selectFood(food: NormalizedFood) {
     setSelected(food);
-    setQuantityG(
-      food.defaultPortionG ? String(Math.round(food.defaultPortionG)) : "100",
-    );
+    setQuantityG(food.defaultPortionG ? String(Math.round(food.defaultPortionG)) : "");
   }
 
   function handleManualSubmit() {
@@ -144,9 +142,7 @@ export function LogFoodForm({ initialDate }: { initialDate: string }) {
     <div className="space-y-4">
       <div className="rounded-lg border border-neutral-200 p-3">
         <p className="text-sm font-medium">{selected.name}</p>
-        <p className="text-sm text-neutral-500">
-          {Math.round(selected.caloriesPer100g)} kcal / 100g
-        </p>
+        <p className="text-sm text-neutral-500">{calorieDisplay(selected)}</p>
       </div>
 
       <div className="space-y-2">
@@ -154,6 +150,7 @@ export function LogFoodForm({ initialDate }: { initialDate: string }) {
         <Input
           id="quantityG"
           type="number"
+          placeholder="100"
           value={quantityG}
           onChange={(e) => setQuantityG(e.target.value)}
         />
@@ -199,7 +196,11 @@ export function LogFoodForm({ initialDate }: { initialDate: string }) {
         <Button type="button" variant="ghost" onClick={() => setSelected(null)}>
           Back
         </Button>
-        <Button type="button" onClick={handleSubmit} disabled={pending}>
+        <Button
+          type="button"
+          onClick={handleSubmit}
+          disabled={pending || !quantityG || Number(quantityG) <= 0}
+        >
           {pending ? "Logging..." : "Log it"}
         </Button>
       </div>

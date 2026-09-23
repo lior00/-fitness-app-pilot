@@ -43,11 +43,16 @@ export default async function DashboardPage() {
       <div className="w-full max-w-md space-y-6">
         <div className="flex items-center justify-between">
           <p className="text-sm text-neutral-500">{user.email}</p>
-          <form action={signout}>
-            <Button type="submit" variant="ghost" size="sm">
-              Log out
+          <div className="flex items-center gap-1">
+            <Button size="sm" variant="ghost" render={<Link href="/settings" />}>
+              Settings
             </Button>
-          </form>
+            <form action={signout}>
+              <Button type="submit" variant="ghost" size="sm">
+                Log out
+              </Button>
+            </form>
+          </div>
         </div>
 
         <Card>

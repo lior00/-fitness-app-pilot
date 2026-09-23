@@ -18,7 +18,7 @@ export function NewMealForm() {
   const [pending, startTransition] = useTransition();
 
   function addIngredient(food: NormalizedFood) {
-    const quantityG = food.defaultPortionG ? String(Math.round(food.defaultPortionG)) : "100";
+    const quantityG = food.defaultPortionG ? String(Math.round(food.defaultPortionG)) : "";
     setIngredients((prev) => [...prev, { food, quantityG }]);
     setAddingIngredient(false);
   }
@@ -33,8 +33,16 @@ export function NewMealForm() {
     setIngredients((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function canSubmit(): boolean {
+    return (
+      name.trim() !== "" &&
+      ingredients.length > 0 &&
+      ingredients.every((ing) => ing.quantityG && Number(ing.quantityG) > 0)
+    );
+  }
+
   function handleSubmit() {
-    if (!name.trim() || ingredients.length === 0) return;
+    if (!canSubmit()) return;
     setError(undefined);
     startTransition(async () => {
       const result = await createCustomMeal({
@@ -70,6 +78,7 @@ export function NewMealForm() {
             <span className="flex-1 text-sm">{ing.food.name}</span>
             <Input
               type="number"
+              placeholder="100"
               value={ing.quantityG}
               onChange={(e) => updateQuantity(i, e.target.value)}
               className="w-20"
@@ -116,11 +125,7 @@ export function NewMealForm() {
         </p>
       )}
 
-      <Button
-        type="button"
-        onClick={handleSubmit}
-        disabled={pending || !name.trim() || ingredients.length === 0}
-      >
+      <Button type="button" onClick={handleSubmit} disabled={pending || !canSubmit()}>
         {pending ? "Saving..." : "Save meal"}
       </Button>
     </div>
