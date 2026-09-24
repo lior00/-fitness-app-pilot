@@ -12,6 +12,15 @@ const SOURCE_LABELS: Record<NormalizedFood["source"], string> = {
   custom: "Custom",
 };
 
+export function ServingConversionNote({ food }: { food: NormalizedFood }) {
+  if (!food.isServingConverted) return null;
+  return (
+    <span className="block text-amber-600">
+      Calculated from a serving size on the label — double-check if it looks off
+    </span>
+  );
+}
+
 export function calorieDisplay(food: NormalizedFood): string {
   if (food.defaultPortionG) {
     const servingCalories = Math.round(
@@ -87,6 +96,7 @@ export function FoodSearch({ onSelect }: { onSelect: (food: NormalizedFood) => v
                 <span className="block text-neutral-500">{food.brand}</span>
               )}
               <span className="block text-neutral-500">{calorieDisplay(food)}</span>
+              <ServingConversionNote food={food} />
             </span>
             <Badge variant="outline">{SOURCE_LABELS[food.source]}</Badge>
           </button>

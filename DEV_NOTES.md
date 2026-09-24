@@ -32,6 +32,26 @@ no CI.
   items (e.g. "Ruffed Grouse, breast meat" for a "chicken breast" search) rank
   in the top few. Simple word/substring scoring, nothing fancy; revisit if a
   future search source needs different treatment.
+- **USDA Branded data can be wrong at the source — confirmed, not hypothetical.**
+  USDA's search API always reports Branded-food nutrients as a per-serving
+  figure that we scale to per-100g using their `servingSize` field
+  ([src/lib/food-sources/usda.ts](src/lib/food-sources/usda.ts)). Found a real
+  case: "YUCATAN GUACAMOLE" (fdcId 1853463) reports "167 kcal per 30g serving"
+  → we correctly compute 556.67 kcal/100g from that, but the true value (cross-
+  checked against 9 Open Food Facts entries for the same product line, all
+  133-175 kcal/100g, and the actual product label) is ~167 kcal/100g — USDA's
+  `servingSize` field is wrong for this record, not our math. Since we can't
+  algorithmically know *which* entries are wrong, we surface the risk instead:
+  every serving-converted result carries `isServingConverted: true` on
+  `NormalizedFood`, which (a) nudges it slightly below equally-relevant
+  alternatives in [relevance.ts](src/lib/food-sources/relevance.ts), and (b)
+  shows a visible "calculated from a serving size" note in search results and
+  right before logging ([src/components/food-search.tsx](src/components/food-search.tsx)'s
+  `ServingConversionNote`, used in the log-food preview and
+  [src/components/ingredient-editor.tsx](src/components/ingredient-editor.tsx)).
+  This is a mitigation, not a fix — a determined bad USDA entry can still rank
+  first and get logged. The "Can't find it? Add manually" fallback is the real
+  escape hatch when a value looks wrong.
 - **Israeli MoH data source has no SLA.** [src/lib/food-sources/israel.ts](src/lib/food-sources/israel.ts)
   hits data.gov.il's CKAN `datastore_search` API live, resource id hardcoded
   (`c3cb0630-0650-46c1-a068-82d575c094b2`). This is a government open-data portal,

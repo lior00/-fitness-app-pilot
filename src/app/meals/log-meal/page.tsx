@@ -11,6 +11,7 @@ export default async function LogMealPage({
   searchParams: Promise<{ date?: string }>;
 }) {
   const { date } = await searchParams;
+  const resolvedDate = date ?? todayIso();
 
   const supabase = await createClient();
   const {
@@ -51,10 +52,17 @@ export default async function LogMealPage({
   return (
     <main className="flex min-h-screen justify-center p-6">
       <div className="w-full max-w-md space-y-6">
+        <Button
+          size="sm"
+          variant="ghost"
+          render={<Link href={`/dashboard?date=${resolvedDate}&tab=day`} />}
+        >
+          ‹ Back
+        </Button>
         <h1 className="text-2xl font-semibold">Log a saved meal</h1>
 
         {meals.length > 0 ? (
-          <LogMealForm meals={meals} initialDate={date ?? todayIso()} />
+          <LogMealForm meals={meals} initialDate={resolvedDate} />
         ) : (
           <div className="space-y-3 text-center">
             <p className="text-sm text-neutral-500">

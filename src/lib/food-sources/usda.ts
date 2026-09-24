@@ -100,6 +100,7 @@ export async function searchUsda(query: string): Promise<NormalizedFood[]> {
         defaultPortionLabel:
           food.householdServingFullText ||
           (servingGrams ? `${Math.round(servingGrams)}g` : undefined),
+        isServingConverted: true,
       };
     }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { calorieDisplay, FoodSearch } from "@/components/food-search";
+import { calorieDisplay, FoodSearch, ServingConversionNote } from "@/components/food-search";
 import { RecentFoodList } from "@/components/recent-food-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -158,6 +158,7 @@ export function LogFoodForm({
       <div className="rounded-lg border border-neutral-200 p-3">
         <p className="text-sm font-medium">{selected.name}</p>
         <p className="text-sm text-neutral-500">{calorieDisplay(selected)}</p>
+        <ServingConversionNote food={selected} />
       </div>
 
       <div className="space-y-2">

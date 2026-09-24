@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FoodSearch } from "@/components/food-search";
+import { FoodSearch, ServingConversionNote } from "@/components/food-search";
 import { RecentFoodList } from "@/components/recent-food-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +41,10 @@ export function IngredientEditor({
           key={i}
           className="flex items-center gap-2 rounded-lg border border-neutral-200 p-2"
         >
-          <span className="flex-1 text-sm">{ing.food.name}</span>
+          <span className="flex-1 text-sm">
+            <span className="block">{ing.food.name}</span>
+            <ServingConversionNote food={ing.food} />
+          </span>
           <Input
             type="number"
             placeholder="100"

@@ -22,6 +22,13 @@ export function relevanceScore(food: NormalizedFood, queryWords: string[]): numb
 
   if (haystack.startsWith(queryWords.join(" "))) score += 3;
 
+  // Small reliability tiebreaker: results whose per-100g values were derived
+  // by scaling a serving-size figure (currently only USDA Branded results)
+  // carry more risk of being wrong at the source than a directly-reported
+  // per-100g value — nudge them below an otherwise-equally-relevant result,
+  // without letting this override a genuinely better text match.
+  if (food.isServingConverted) score -= 1;
+
   return score;
 }
 
