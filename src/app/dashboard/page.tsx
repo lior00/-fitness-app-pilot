@@ -23,6 +23,7 @@ import {
 import { MEAL_TYPE_LABELS, MEAL_TYPE_ORDER } from "@/lib/meal-type";
 import { deleteLogGroup, updateLogQuantity } from "../meals/actions";
 import { signout } from "./actions";
+import { DashboardTabs } from "./dashboard-tabs";
 
 const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 
@@ -42,11 +43,12 @@ type FoodLogRow = {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; month?: string }>;
+  searchParams: Promise<{ date?: string; month?: string; tab?: string }>;
 }) {
-  const { date: dateParam, month: monthParam } = await searchParams;
+  const { date: dateParam, month: monthParam, tab: tabParam } = await searchParams;
   const date = dateParam ?? todayIso();
   const month = monthParam ?? date.slice(0, 7);
+  const defaultTab = tabParam === "calendar" ? "calendar" : "day";
 
   const supabase = await createClient();
   const {
@@ -110,6 +112,187 @@ export default async function DashboardPage({
   const today = todayIso();
   const isToday = date === today;
 
+  const dayPanel = (
+    <>
+      <div className="flex items-center justify-between">
+        <Button
+          size="icon-sm"
+          variant="outline"
+          render={<Link href={`/dashboard?date=${addDaysIso(date, -1)}&month=${month}&tab=day`} />}
+        >
+          ‹
+        </Button>
+        <span className="text-sm font-medium">
+          {isToday ? "Today" : formatDisplayDate(date)}
+        </span>
+        <Button
+          size="icon-sm"
+          variant="outline"
+          render={<Link href={`/dashboard?date=${addDaysIso(date, 1)}&month=${month}&tab=day`} />}
+        >
+          ›
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Calories</CardTitle>
+          <CardDescription>
+            {targetCalories > 0
+              ? `${totalCalories} of ${targetCalories} kcal logged`
+              : "Complete onboarding to see your target"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Progress value={progressPercent} />
+          <div className="flex items-baseline justify-between">
+            <span className="text-3xl font-semibold">{remaining}</span>
+            <span className="text-sm text-neutral-500">kcal remaining</span>
+          </div>
+          <div className="flex justify-between text-sm text-neutral-500">
+            <span>Protein {totalProtein.toFixed(0)}g</span>
+            <span>Carbs {totalCarbs.toFixed(0)}g</span>
+            <span>Fat {totalFat.toFixed(0)}g</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-3 gap-2">
+        <Button size="sm" render={<Link href={`/meals/log?date=${date}`} />}>
+          Log food
+        </Button>
+        <Button size="sm" variant="outline" render={<Link href={`/meals/log-meal?date=${date}`} />}>
+          Log a meal
+        </Button>
+        <Button size="sm" variant="outline" render={<Link href="/meals/new" />}>
+          Build a meal
+        </Button>
+      </div>
+
+      <div className="space-y-4">
+        {MEAL_TYPE_ORDER.filter((mt) => groupsByMealType.has(mt)).map((mealType) => (
+          <div key={mealType} className="space-y-2">
+            <h2 className="text-sm font-semibold text-neutral-700">
+              {MEAL_TYPE_LABELS[mealType]}
+            </h2>
+            {groupsByMealType.get(mealType)!.map((group) => {
+              const groupCalories = group.reduce((sum, r) => sum + r.calories, 0);
+              const mealName = group[0].custom_meals?.name;
+              return (
+                <Card key={group[0].log_group_id} size="sm">
+                  <CardContent className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        {mealName && <p className="text-sm font-medium">{mealName}</p>}
+                        {group.map((row) => (
+                          <form
+                            key={row.id}
+                            action={updateLogQuantity}
+                            className="flex items-center gap-1.5 text-sm text-neutral-600"
+                          >
+                            <input type="hidden" name="logId" value={row.id} />
+                            <input type="hidden" name="loggedDate" value={date} />
+                            <span>{row.food_items?.name} —</span>
+                            <Input
+                              name="quantityG"
+                              type="number"
+                              defaultValue={row.quantity_g}
+                              className="h-6 w-16 px-1.5 text-xs"
+                            />
+                            <span>g ({row.calories} kcal)</span>
+                            <Button size="xs" variant="ghost" type="submit">
+                              Update
+                            </Button>
+                          </form>
+                        ))}
+                      </div>
+                      <form action={deleteLogGroup.bind(null, group[0].log_group_id, date)}>
+                        <Button size="xs" variant="ghost" type="submit">
+                          Delete
+                        </Button>
+                      </form>
+                    </div>
+                    <p className="text-xs text-neutral-400">{groupCalories} kcal total</p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        ))}
+
+        {rows.length === 0 && (
+          <p className="text-center text-sm text-neutral-500">
+            Nothing logged {isToday ? "today" : "this day"} yet.
+          </p>
+        )}
+      </div>
+    </>
+  );
+
+  const calendarPanel = (
+    <>
+      <div className="flex items-center justify-between">
+        <Button
+          size="icon-sm"
+          variant="outline"
+          render={
+            <Link href={`/dashboard?date=${date}&month=${shiftMonthParam(month, -1)}&tab=calendar`} />
+          }
+        >
+          ‹
+        </Button>
+        <span className="text-sm font-medium">{formatMonthLabel(month)}</span>
+        <Button
+          size="icon-sm"
+          variant="outline"
+          render={
+            <Link href={`/dashboard?date=${date}&month=${shiftMonthParam(month, 1)}&tab=calendar`} />
+          }
+        >
+          ›
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 text-center text-xs text-neutral-400">
+        {WEEKDAY_LABELS.map((label, i) => (
+          <span key={i}>{label}</span>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((cell, i) => {
+          if (!cell.dateIso) return <div key={i} />;
+          const total = totalsByDate.get(cell.dateIso);
+          const hasEntries = total !== undefined;
+          const isOver = hasEntries && targetCalories > 0 && total > targetCalories;
+          const isSelected = cell.dateIso === date;
+
+          return (
+            <Link
+              key={i}
+              href={`/dashboard?date=${cell.dateIso}&month=${month}&tab=day`}
+              className={`flex flex-col items-center rounded-md border p-1.5 text-xs ${
+                isSelected ? "border-neutral-900" : "border-neutral-200"
+              } ${hasEntries ? (isOver ? "bg-red-50" : "bg-green-50") : "bg-transparent"}`}
+            >
+              <span className="font-medium">{Number(cell.dateIso.slice(-2))}</span>
+              {hasEntries && <span className="text-[10px] text-neutral-500">{total}</span>}
+            </Link>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-center gap-4 text-xs text-neutral-500">
+        <span className="flex items-center gap-1">
+          <span className="size-2.5 rounded-full bg-green-100" /> Under target
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="size-2.5 rounded-full bg-red-100" /> Over target
+        </span>
+      </div>
+    </>
+  );
+
   return (
     <main className="flex min-h-screen justify-center p-6">
       <div className="w-full max-w-md space-y-6">
@@ -127,177 +310,7 @@ export default async function DashboardPage({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Button
-              size="icon-sm"
-              variant="outline"
-              render={<Link href={`/dashboard?date=${date}&month=${shiftMonthParam(month, -1)}`} />}
-            >
-              ‹
-            </Button>
-            <span className="text-sm font-medium">{formatMonthLabel(month)}</span>
-            <Button
-              size="icon-sm"
-              variant="outline"
-              render={<Link href={`/dashboard?date=${date}&month=${shiftMonthParam(month, 1)}`} />}
-            >
-              ›
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-7 gap-1 text-center text-xs text-neutral-400">
-            {WEEKDAY_LABELS.map((label, i) => (
-              <span key={i}>{label}</span>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-1">
-            {cells.map((cell, i) => {
-              if (!cell.dateIso) return <div key={i} />;
-              const total = totalsByDate.get(cell.dateIso);
-              const hasEntries = total !== undefined;
-              const isOver = hasEntries && targetCalories > 0 && total > targetCalories;
-              const isSelected = cell.dateIso === date;
-
-              return (
-                <Link
-                  key={i}
-                  href={`/dashboard?date=${cell.dateIso}&month=${month}`}
-                  className={`flex flex-col items-center rounded-md border p-1.5 text-xs ${
-                    isSelected ? "border-neutral-900" : "border-neutral-200"
-                  } ${hasEntries ? (isOver ? "bg-red-50" : "bg-green-50") : "bg-transparent"}`}
-                >
-                  <span className="font-medium">{Number(cell.dateIso.slice(-2))}</span>
-                  {hasEntries && (
-                    <span className="text-[10px] text-neutral-500">{total}</span>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <Button
-            size="icon-sm"
-            variant="outline"
-            render={<Link href={`/dashboard?date=${addDaysIso(date, -1)}&month=${month}`} />}
-          >
-            ‹
-          </Button>
-          <span className="text-sm font-medium">
-            {isToday ? "Today" : formatDisplayDate(date)}
-          </span>
-          <Button
-            size="icon-sm"
-            variant="outline"
-            render={<Link href={`/dashboard?date=${addDaysIso(date, 1)}&month=${month}`} />}
-          >
-            ›
-          </Button>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Calories</CardTitle>
-            <CardDescription>
-              {targetCalories > 0
-                ? `${totalCalories} of ${targetCalories} kcal logged`
-                : "Complete onboarding to see your target"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Progress value={progressPercent} />
-            <div className="flex items-baseline justify-between">
-              <span className="text-3xl font-semibold">{remaining}</span>
-              <span className="text-sm text-neutral-500">kcal remaining</span>
-            </div>
-            <div className="flex justify-between text-sm text-neutral-500">
-              <span>Protein {totalProtein.toFixed(0)}g</span>
-              <span>Carbs {totalCarbs.toFixed(0)}g</span>
-              <span>Fat {totalFat.toFixed(0)}g</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-3 gap-2">
-          <Button size="sm" render={<Link href={`/meals/log?date=${date}`} />}>
-            Log food
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            render={<Link href={`/meals/log-meal?date=${date}`} />}
-          >
-            Log a meal
-          </Button>
-          <Button size="sm" variant="outline" render={<Link href="/meals/new" />}>
-            Build a meal
-          </Button>
-        </div>
-
-        <div className="space-y-4">
-          {MEAL_TYPE_ORDER.filter((mt) => groupsByMealType.has(mt)).map((mealType) => (
-            <div key={mealType} className="space-y-2">
-              <h2 className="text-sm font-semibold text-neutral-700">
-                {MEAL_TYPE_LABELS[mealType]}
-              </h2>
-              {groupsByMealType.get(mealType)!.map((group) => {
-                const groupCalories = group.reduce((sum, r) => sum + r.calories, 0);
-                const mealName = group[0].custom_meals?.name;
-                return (
-                  <Card key={group[0].log_group_id} size="sm">
-                    <CardContent className="space-y-2">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          {mealName && (
-                            <p className="text-sm font-medium">{mealName}</p>
-                          )}
-                          {group.map((row) => (
-                            <form
-                              key={row.id}
-                              action={updateLogQuantity}
-                              className="flex items-center gap-1.5 text-sm text-neutral-600"
-                            >
-                              <input type="hidden" name="logId" value={row.id} />
-                              <input type="hidden" name="loggedDate" value={date} />
-                              <span>{row.food_items?.name} —</span>
-                              <Input
-                                name="quantityG"
-                                type="number"
-                                defaultValue={row.quantity_g}
-                                className="h-6 w-16 px-1.5 text-xs"
-                              />
-                              <span>g ({row.calories} kcal)</span>
-                              <Button size="xs" variant="ghost" type="submit">
-                                Update
-                              </Button>
-                            </form>
-                          ))}
-                        </div>
-                        <form
-                          action={deleteLogGroup.bind(null, group[0].log_group_id, date)}
-                        >
-                          <Button size="xs" variant="ghost" type="submit">
-                            Delete
-                          </Button>
-                        </form>
-                      </div>
-                      <p className="text-xs text-neutral-400">{groupCalories} kcal total</p>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          ))}
-
-          {rows.length === 0 && (
-            <p className="text-center text-sm text-neutral-500">
-              Nothing logged {isToday ? "today" : "this day"} yet.
-            </p>
-          )}
-        </div>
+        <DashboardTabs defaultTab={defaultTab} dayPanel={dayPanel} calendarPanel={calendarPanel} />
 
         <Link href="/workouts">
           <Card className="cursor-pointer transition-colors hover:bg-neutral-50" size="sm">

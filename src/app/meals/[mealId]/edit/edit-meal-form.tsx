@@ -7,11 +7,45 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { NormalizedFood } from "@/lib/food-sources/types";
 import type { RecentFoodItem } from "@/lib/recent-foods";
-import { createCustomMeal } from "../actions";
+import { deleteCustomMeal, updateCustomMeal } from "../../actions";
 
-export function NewMealForm({ recentFoods }: { recentFoods: RecentFoodItem[] }) {
-  const [name, setName] = useState("");
-  const [ingredients, setIngredients] = useState<EditableIngredient[]>([]);
+type InitialIngredient = {
+  foodItemId: string;
+  name: string;
+  quantityG: number;
+  caloriesPer100g: number;
+  proteinPer100g: number;
+  carbsPer100g: number;
+  fatPer100g: number;
+};
+
+function toEditable(ing: InitialIngredient): EditableIngredient {
+  const food: NormalizedFood = {
+    source: "custom",
+    name: ing.name,
+    caloriesPer100g: ing.caloriesPer100g,
+    proteinPer100g: ing.proteinPer100g,
+    carbsPer100g: ing.carbsPer100g,
+    fatPer100g: ing.fatPer100g,
+  };
+  return { food, quantityG: String(ing.quantityG), existingFoodItemId: ing.foodItemId };
+}
+
+export function EditMealForm({
+  mealId,
+  initialName,
+  initialIngredients,
+  recentFoods,
+}: {
+  mealId: string;
+  initialName: string;
+  initialIngredients: InitialIngredient[];
+  recentFoods: RecentFoodItem[];
+}) {
+  const [name, setName] = useState(initialName);
+  const [ingredients, setIngredients] = useState<EditableIngredient[]>(
+    initialIngredients.map(toEditable),
+  );
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
 
@@ -45,7 +79,8 @@ export function NewMealForm({ recentFoods }: { recentFoods: RecentFoodItem[] }) 
     if (!canSubmit()) return;
     setError(undefined);
     startTransition(async () => {
-      const result = await createCustomMeal({
+      const result = await updateCustomMeal({
+        mealId,
         name: name.trim(),
         ingredients: ingredients.map((ing) => ({
           food: ing.existingFoodItemId
@@ -62,12 +97,7 @@ export function NewMealForm({ recentFoods }: { recentFoods: RecentFoodItem[] }) 
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="mealName">Meal name</Label>
-        <Input
-          id="mealName"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Chicken & rice bowl"
-        />
+        <Input id="mealName" value={name} onChange={(e) => setName(e.target.value)} />
       </div>
 
       <div className="space-y-2">
@@ -87,9 +117,16 @@ export function NewMealForm({ recentFoods }: { recentFoods: RecentFoodItem[] }) 
         </p>
       )}
 
-      <Button type="button" onClick={handleSubmit} disabled={pending || !canSubmit()}>
-        {pending ? "Saving..." : "Save meal"}
-      </Button>
+      <div className="flex items-center justify-between">
+        <form action={deleteCustomMeal.bind(null, mealId)}>
+          <Button type="submit" variant="destructive" size="sm">
+            Delete meal
+          </Button>
+        </form>
+        <Button type="button" onClick={handleSubmit} disabled={pending || !canSubmit()}>
+          {pending ? "Saving..." : "Save changes"}
+        </Button>
+      </div>
     </div>
   );
 }

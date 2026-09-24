@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,7 +100,16 @@ export function LogMealForm({
 
       {selectedMeal && (
         <div className="space-y-2">
-          <Label>Ingredients</Label>
+          <div className="flex items-center justify-between">
+            <Label>Ingredients</Label>
+            <Button
+              size="xs"
+              variant="ghost"
+              render={<Link href={`/meals/${selectedMeal.id}/edit`} />}
+            >
+              Edit meal
+            </Button>
+          </div>
           {selectedMeal.ingredients.map((ing) => (
             <div
               key={ing.id}

@@ -247,3 +247,63 @@ export async function updateLogQuantity(formData: FormData) {
 
   redirect(`/dashboard?date=${loggedDate}`);
 }
+
+export async function updateCustomMeal(input: {
+  mealId: string;
+  name: string;
+  ingredients: { food: FoodRef; quantityG: number }[];
+}): Promise<ActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  if (input.ingredients.length === 0) {
+    return { error: "Add at least one ingredient" };
+  }
+
+  const { error: renameError } = await supabase
+    .from("custom_meals")
+    .update({ name: input.name })
+    .eq("id", input.mealId)
+    .eq("user_id", user.id);
+  if (renameError) return { error: renameError.message };
+
+  const { error: deleteError } = await supabase
+    .from("custom_meal_ingredients")
+    .delete()
+    .eq("custom_meal_id", input.mealId);
+  if (deleteError) return { error: deleteError.message };
+
+  try {
+    const rows = await Promise.all(
+      input.ingredients.map(async (ingredient) => {
+        const foodItem = await resolveFoodItem(supabase, user.id, ingredient.food);
+        return {
+          custom_meal_id: input.mealId,
+          food_item_id: foodItem.id,
+          quantity_g: ingredient.quantityG,
+        };
+      }),
+    );
+
+    const { error } = await supabase.from("custom_meal_ingredients").insert(rows);
+    if (error) return { error: error.message };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to save ingredients" };
+  }
+
+  redirect("/meals/log-meal");
+}
+
+export async function deleteCustomMeal(mealId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  await supabase.from("custom_meals").delete().eq("id", mealId).eq("user_id", user.id);
+  redirect("/meals/log-meal");
+}
