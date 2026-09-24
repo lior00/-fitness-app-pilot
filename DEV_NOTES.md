@@ -85,6 +85,36 @@ primarily with Hebrew data. Getting to real Hebrew support would mean:
 This is a real chunk of work, not a toggle — flagging it as a distinct project
 phase rather than a quick add.
 
+## Researched ideas (not built, worth knowing about)
+
+Looked at MyFitnessPal, Cronometer, MacroFactor, and Lose It for feature ideas.
+Two are worth calling out specifically:
+
+- **Adaptive TDEE (MacroFactor-style).** The single most-cited differentiator in
+  the research. Instead of computing `target_calories` once at onboarding from a
+  static formula ([src/lib/tdee.ts](src/lib/tdee.ts) — already averages three
+  formulas, which is more than most competitors do), MacroFactor recalculates
+  weekly by comparing actual logged weight trend against actual logged intake:
+  if someone's maintaining weight at 2,200 kcal/day, their real TDEE is ~2,200,
+  regardless of what the formula predicted. This needs a `weight_logs` table
+  (mentioned in the original schema review, never built) plus a trend-smoothing
+  algorithm and a minimum-data threshold before adjusting (2-4 weeks, per their
+  public docs) — a real project, not a quick add. Worth doing eventually since
+  static formulas can be off 15-25% for a given individual.
+- **Barcode scanning.** Open Food Facts has a dedicated barcode-lookup endpoint
+  (`GET https://world.openfoodfacts.org/api/v2/product/{barcode}.json`) that's
+  separate from the text-search endpoint we use today
+  ([src/lib/food-sources/off.ts](src/lib/food-sources/off.ts)). A camera-based
+  scanner (`@zxing/browser` is the standard pure-JS option, no native deps)
+  feeding into that endpoint would remove search friction entirely for packaged
+  foods. Deliberately scoped out of the current pass to keep focus on making
+  core logging solid first; the endpoint and general approach are confirmed to
+  exist, just not implemented.
+
+Mentioned in the research but further out / lower priority: AI photo food
+recognition (meal-photo → estimated macros), voice logging, wearable/fitness-
+tracker sync.
+
 ## Polish backlog (smaller, lower-risk items)
 
 - Loading/error states are minimal throughout — most forms just show plain text
@@ -97,8 +127,10 @@ phase rather than a quick add.
 - No responsive/mobile layout testing beyond the default Tailwind stacking — forms
   are all single-column `max-w-md` so probably fine, but not verified on real
   small screens.
-- No "recently logged" or favorites shortcut for quick re-logging common foods —
-  every log requires a fresh search even for things logged yesterday.
+- Recent-foods quick-add ([src/lib/recent-foods.ts](src/lib/recent-foods.ts)) is
+  usage-based only (most-recently-logged, deduped) — no explicit star/favorite
+  system. Fine for now; would be a small addition (a `favorited` flag on
+  `food_items` + a toggle) if usage-based recency turns out not to be enough.
 - Password reset / "forgot password" flow doesn't exist — only signup/login.
 - No tests of any kind (unit, integration, e2e) and no CI pipeline. Given the
   amount of business logic in [src/lib/tdee.ts](src/lib/tdee.ts) and

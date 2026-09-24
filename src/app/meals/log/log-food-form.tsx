@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { calorieDisplay, FoodSearch } from "@/components/food-search";
+import { RecentFoodList } from "@/components/recent-food-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,10 +15,18 @@ import {
 } from "@/components/ui/select";
 import type { NormalizedFood } from "@/lib/food-sources/types";
 import { MEAL_TYPE_LABELS, type MealType } from "@/lib/meal-type";
+import type { RecentFoodItem } from "@/lib/recent-foods";
 import { logFood } from "../actions";
 
-export function LogFoodForm({ initialDate }: { initialDate: string }) {
+export function LogFoodForm({
+  initialDate,
+  recentFoods,
+}: {
+  initialDate: string;
+  recentFoods: RecentFoodItem[];
+}) {
   const [selected, setSelected] = useState<NormalizedFood | null>(null);
+  const [existingFoodItemId, setExistingFoodItemId] = useState<string | null>(null);
   const [manualMode, setManualMode] = useState(false);
   const [manualName, setManualName] = useState("");
   const [manualCalories, setManualCalories] = useState("");
@@ -31,8 +40,9 @@ export function LogFoodForm({ initialDate }: { initialDate: string }) {
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
 
-  function selectFood(food: NormalizedFood) {
+  function selectFood(food: NormalizedFood, existingId?: string) {
     setSelected(food);
+    setExistingFoodItemId(existingId ?? null);
     setQuantityG(food.defaultPortionG ? String(Math.round(food.defaultPortionG)) : "");
   }
 
@@ -53,7 +63,9 @@ export function LogFoodForm({ initialDate }: { initialDate: string }) {
     setError(undefined);
     startTransition(async () => {
       const result = await logFood({
-        food: { type: "new", food: selected },
+        food: existingFoodItemId
+          ? { type: "existing", foodItemId: existingFoodItemId }
+          : { type: "new", food: selected },
         quantityG: Number(quantityG),
         mealType,
         loggedDate: date,
@@ -67,6 +79,9 @@ export function LogFoodForm({ initialDate }: { initialDate: string }) {
       <div className="space-y-4">
         {!manualMode ? (
           <>
+            {recentFoods.length > 0 && (
+              <RecentFoodList items={recentFoods} onSelect={selectFood} />
+            )}
             <FoodSearch onSelect={selectFood} />
             <button
               type="button"

@@ -34,6 +34,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Onboar
   const { error } = await supabase
     .from("profiles")
     .update({
+      food_region: data.foodRegion,
       gender: data.gender,
       age: data.age,
       height_cm: heightCm,

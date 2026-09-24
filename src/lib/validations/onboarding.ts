@@ -10,9 +10,11 @@ export const activityLevelSchema = z.enum([
 ]);
 export const goalSchema = z.enum(["cut", "maintain", "bulk"]);
 export const unitSystemSchema = z.enum(["metric", "imperial"]);
+export const foodRegionSchema = z.enum(["us", "il"]);
 
 export const onboardingSchema = z
   .object({
+    foodRegion: foodRegionSchema,
     gender: genderSchema,
     age: z.coerce.number().int().min(13, "Must be at least 13").max(120, "Enter a valid age"),
     unitSystem: unitSystemSchema,

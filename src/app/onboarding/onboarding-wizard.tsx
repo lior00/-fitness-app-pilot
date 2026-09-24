@@ -11,8 +11,10 @@ import { ACTIVITY_LEVEL_OPTIONS, type ActivityLevel, type Gender, type Goal } fr
 import { completeOnboarding } from "./actions";
 
 type UnitSystem = "metric" | "imperial";
+type FoodRegion = "us" | "il";
 
 type FormState = {
+  foodRegion: FoodRegion;
   gender: Gender | undefined;
   age: string;
   unitSystem: UnitSystem;
@@ -26,6 +28,7 @@ type FormState = {
 };
 
 const INITIAL_STATE: FormState = {
+  foodRegion: "us",
   gender: undefined,
   age: "",
   unitSystem: "metric",
@@ -38,7 +41,18 @@ const INITIAL_STATE: FormState = {
   goal: undefined,
 };
 
-const STEPS = ["About you", "Height & weight", "Activity level", "Goal"] as const;
+const STEPS = [
+  "Region",
+  "About you",
+  "Height & weight",
+  "Activity level",
+  "Goal",
+] as const;
+
+const REGION_OPTIONS: { value: FoodRegion; label: string; description: string }[] = [
+  { value: "us", label: "United States / Canada", description: "USDA food database" },
+  { value: "il", label: "Israel", description: "Israeli Ministry of Health food database" },
+];
 
 const GOAL_OPTIONS: { value: Goal; label: string; description: string }[] = [
   { value: "cut", label: "Cut", description: "Lose fat, in a calorie deficit" },
@@ -96,8 +110,10 @@ export function OnboardingWizard() {
   function canAdvance(): boolean {
     switch (step) {
       case 0:
-        return Boolean(form.gender) && form.age.trim() !== "";
+        return true;
       case 1:
+        return Boolean(form.gender) && form.age.trim() !== "";
+      case 2:
         if (form.unitSystem === "metric") {
           return form.heightCm.trim() !== "" && form.weightKg.trim() !== "";
         }
@@ -105,9 +121,9 @@ export function OnboardingWizard() {
           (form.heightFt.trim() !== "" || form.heightIn.trim() !== "") &&
           form.weightLbs.trim() !== ""
         );
-      case 2:
-        return Boolean(form.activityLevel);
       case 3:
+        return Boolean(form.activityLevel);
+      case 4:
         return Boolean(form.goal);
       default:
         return false;
@@ -122,6 +138,7 @@ export function OnboardingWizard() {
     }
     startTransition(async () => {
       const result = await completeOnboarding({
+        foodRegion: form.foodRegion,
         gender: form.gender!,
         age: form.age as unknown as number,
         unitSystem: form.unitSystem,
@@ -156,6 +173,20 @@ export function OnboardingWizard() {
       </div>
 
       {step === 0 && (
+        <div className="space-y-3">
+          {REGION_OPTIONS.map((option) => (
+            <OptionCard
+              key={option.value}
+              selected={form.foodRegion === option.value}
+              title={option.label}
+              description={option.description}
+              onSelect={() => update("foodRegion", option.value)}
+            />
+          ))}
+        </div>
+      )}
+
+      {step === 1 && (
         <div className="space-y-6">
           <div className="space-y-2">
             <Label>Gender</Label>
@@ -194,7 +225,7 @@ export function OnboardingWizard() {
         </div>
       )}
 
-      {step === 1 && (
+      {step === 2 && (
         <div className="space-y-6">
           <div className="space-y-2">
             <Label>Units</Label>
@@ -271,7 +302,7 @@ export function OnboardingWizard() {
         </div>
       )}
 
-      {step === 2 && (
+      {step === 3 && (
         <div className="space-y-3">
           {ACTIVITY_LEVEL_OPTIONS.map((option) => (
             <OptionCard
@@ -285,7 +316,7 @@ export function OnboardingWizard() {
         </div>
       )}
 
-      {step === 3 && (
+      {step === 4 && (
         <div className="space-y-3">
           {GOAL_OPTIONS.map((option) => (
             <OptionCard
