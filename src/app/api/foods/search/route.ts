@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { searchUsda } from "@/lib/food-sources/usda";
 import { searchOpenFoodFacts } from "@/lib/food-sources/off";
 import { searchIsrael } from "@/lib/food-sources/israel";
+import { sortByRelevance } from "@/lib/food-sources/relevance";
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -32,5 +33,7 @@ export async function GET(request: NextRequest) {
     searchOpenFoodFacts(query).catch(() => []),
   ]);
 
-  return NextResponse.json({ results: [...primaryResults, ...offResults].slice(0, 25) });
+  const combined = sortByRelevance([...primaryResults, ...offResults], query);
+
+  return NextResponse.json({ results: combined.slice(0, 25) });
 }

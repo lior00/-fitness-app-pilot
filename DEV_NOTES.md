@@ -5,18 +5,33 @@ read cold — file paths included so it doesn't have to rediscover the codebase)
 
 ## State of the app
 
-Working: signup/login/logout, onboarding (body metrics → TDEE/target calories),
-dashboard, calorie tracking (search USDA/Israeli-MoH/Open Food Facts, log single
-foods or custom meals, day view, month calendar), settings (food region + units).
-Not built: workouts (`/workouts` is a stub), no tests, no CI.
+Working: signup/login/logout, onboarding (region + body metrics → TDEE/target
+calories), dashboard (calendar + selected-day summary + entries, all one page),
+calorie tracking (search USDA/Israeli-MoH/Open Food Facts, log single foods or
+custom meals with per-ingredient weights, recent-foods quick-add), settings
+(food region + units). Not built: workouts (`/workouts` is a stub), no tests,
+no CI.
 
 ## Known issues / risks
 
-- **Open Food Facts is flaky.** Their legacy `cgi/search.pl` endpoint
-  ([src/lib/food-sources/off.ts](src/lib/food-sources/off.ts)) returns intermittent
-  503s. We already catch and degrade gracefully (just fewer results), but if OFF
-  results feel sparse, this is why — not a bug to chase, it's their server. A retry
-  with backoff would help but wasn't worth it for a pilot.
+- **Open Food Facts: switched to their modern search API, lost portion data.**
+  [src/lib/food-sources/off.ts](src/lib/food-sources/off.ts) now calls
+  `search.openfoodfacts.org` (Elasticsearch-backed "Search-a-licious") instead
+  of the legacy `cgi/search.pl` endpoint — confirmed by direct testing that the
+  legacy one missed real products the new one finds cleanly, with much better
+  relevance too. Tradeoff, also confirmed by testing: this index doesn't carry
+  `serving_size`/`serving_quantity` at all, so OFF results no longer get a
+  suggested portion the way USDA branded items do (quantity field just starts
+  empty). If this matters later, one option: only fetch portion data lazily
+  when a user actually selects an OFF result (a follow-up product lookup via
+  `/api/v2/product/{barcode}.json`), rather than for every search result.
+- **Our own relevance scoring, not just source order.**
+  [src/lib/food-sources/relevance.ts](src/lib/food-sources/relevance.ts) scores
+  every result (all sources combined) by word-match against the query before
+  slicing to 25 — added because USDA's own relevance let genuinely unrelated
+  items (e.g. "Ruffed Grouse, breast meat" for a "chicken breast" search) rank
+  in the top few. Simple word/substring scoring, nothing fancy; revisit if a
+  future search source needs different treatment.
 - **Israeli MoH data source has no SLA.** [src/lib/food-sources/israel.ts](src/lib/food-sources/israel.ts)
   hits data.gov.il's CKAN `datastore_search` API live, resource id hardcoded
   (`c3cb0630-0650-46c1-a068-82d575c094b2`). This is a government open-data portal,
@@ -33,10 +48,11 @@ Not built: workouts (`/workouts` is a stub), no tests, no CI.
   actually gets stored — [src/app/meals/actions.ts](src/app/meals/actions.ts)) is
   the client's local calendar date, correct by design. But `todayIso()`
   ([src/lib/date.ts](src/lib/date.ts)), used to decide what counts as "today" on
-  the dashboard and the default `/meals` view, is server/UTC-based. Right around
-  midnight in the user's timezone these can disagree by a day. Documented as a
-  known pilot-scope simplification, not accidental — see the plan discussion this
-  came from if you want the full reasoning.
+  the dashboard (the default `/dashboard` view with no `?date=`), is
+  server/UTC-based. Right around midnight in the user's timezone these can
+  disagree by a day. Documented as a known pilot-scope simplification, not
+  accidental — see the plan discussion this came from if you want the full
+  reasoning.
 - **Supabase's transactional email rate limit is low on the free tier.** We hit
   it multiple times during testing (~3-4 signup emails/hour). If testing signup
   flows, expect this; either wait it out or add a custom SMTP provider in Supabase
@@ -45,12 +61,14 @@ Not built: workouts (`/workouts` is a stub), no tests, no CI.
   food twice to one meal (`src/app/meals/new/new-meal-form.tsx`) — it'll just
   create two rows instead of merging quantities. Harmless (totals are still
   correct) but a little odd in the ingredient list UI.
-- **Custom meals aren't editable after creation.** You can log servings of a
-  saved meal but can't rename it or change its ingredients — only delete
-  individual logged instances. Would need an edit page.
+- **Custom meal templates aren't editable after creation.** Logging a saved
+  meal now prompts per-ingredient weights each time (so day-to-day variation
+  doesn't require editing the template), but you still can't rename a template
+  or permanently add/remove an ingredient from it — only delete individual
+  logged instances. Would need an edit page for the template itself.
 - **No confirmation on delete.** The "Delete" button on a logged entry
-  ([src/app/meals/page.tsx](src/app/meals/page.tsx)) fires immediately, no
-  "are you sure." Low risk (nothing else depends on food logs), but worth a
+  ([src/app/dashboard/page.tsx](src/app/dashboard/page.tsx)) fires immediately,
+  no "are you sure." Low risk (nothing else depends on food logs), but worth a
   confirm dialog if this becomes a real product.
 - **No macro targets, only a calorie target.** Onboarding never asked for a
   macro split, so the day view shows protein/carb/fat totals with nothing to
@@ -67,8 +85,8 @@ primarily with Hebrew data. Getting to real Hebrew support would mean:
 - A `dir="rtl"` mode — currently nothing in [src/app/layout.tsx](src/app/layout.tsx)
   or any page sets this; the whole layout (nav, forms, cards) is built assuming LTR
   and would need review, not just a blanket `dir` flip (icons like the ‹ › date
-  nav arrows in [src/app/meals/page.tsx](src/app/meals/page.tsx) would need to
-  mirror, for one).
+  nav arrows in [src/app/dashboard/page.tsx](src/app/dashboard/page.tsx) would
+  need to mirror, for one).
 - UI string translation — every label, button, and error message in the app is
   hardcoded English (no i18n library, no string extraction). Would need something
   like `next-intl` and a real translation pass, not just Google-Translate-and-go

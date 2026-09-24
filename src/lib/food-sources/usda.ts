@@ -25,13 +25,6 @@ type FdcFood = {
   householdServingFullText?: string;
 };
 
-// Generic/raw ingredients (Foundation, SR Legacy) before packaged products
-// (Branded), so searching "banana" or "chicken" surfaces the basic form
-// first rather than a specific branded snack.
-function dataTypeRank(dataType?: string): number {
-  return dataType === "Branded" ? 1 : 0;
-}
-
 const NUTRIENT_IDS = {
   protein: 1003,
   carbs: 1005,
@@ -74,7 +67,7 @@ export async function searchUsda(query: string): Promise<NormalizedFood[]> {
   const url = new URL("https://api.nal.usda.gov/fdc/v1/foods/search");
   url.searchParams.set("api_key", apiKey);
   url.searchParams.set("query", query);
-  url.searchParams.set("pageSize", "15");
+  url.searchParams.set("pageSize", "20");
   url.searchParams.set(
     "dataType",
     "Foundation,SR Legacy,Branded",
@@ -84,11 +77,8 @@ export async function searchUsda(query: string): Promise<NormalizedFood[]> {
   if (!res.ok) return [];
 
   const data = (await res.json()) as { foods?: FdcFood[] };
-  const foods = [...(data.foods ?? [])].sort(
-    (a, b) => dataTypeRank(a.dataType) - dataTypeRank(b.dataType),
-  );
 
-  return foods.map((food) => {
+  return (data.foods ?? []).map((food) => {
     const rawCalories = calorieValue(food.foodNutrients);
     const rawProtein = nutrientValue(food.foodNutrients, NUTRIENT_IDS.protein);
     const rawCarbs = nutrientValue(food.foodNutrients, NUTRIENT_IDS.carbs);

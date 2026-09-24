@@ -19,7 +19,7 @@ export async function searchIsrael(query: string): Promise<NormalizedFood[]> {
   const url = new URL("https://data.gov.il/api/3/action/datastore_search");
   url.searchParams.set("resource_id", RESOURCE_ID);
   url.searchParams.set("q", query);
-  url.searchParams.set("limit", "15");
+  url.searchParams.set("limit", "20");
 
   const res = await fetch(url, { headers: { "User-Agent": "FitnessAppPilot/1.0" } });
   if (!res.ok) return [];

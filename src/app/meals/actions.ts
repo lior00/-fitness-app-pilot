@@ -104,7 +104,7 @@ export async function logFood(input: {
     return { error: err instanceof Error ? err.message : "Failed to log food" };
   }
 
-  redirect(`/meals?date=${input.loggedDate}`);
+  redirect(`/dashboard?date=${input.loggedDate}`);
 }
 
 export async function createCustomMeal(input: {
@@ -153,7 +153,7 @@ export async function logCustomMeal(input: {
   customMealId: string;
   mealType: MealType;
   loggedDate: string;
-  servings: number;
+  ingredients: { foodItemId: string; quantityG: number }[];
 }): Promise<ActionState> {
   const supabase = await createClient();
   const {
@@ -161,39 +161,47 @@ export async function logCustomMeal(input: {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  const { data: ingredients, error: ingredientsError } = await supabase
-    .from("custom_meal_ingredients")
-    .select(
-      "quantity_g, food_items(id, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g)",
-    )
-    .eq("custom_meal_id", input.customMealId);
-
-  if (ingredientsError) return { error: ingredientsError.message };
-  if (!ingredients || ingredients.length === 0) {
+  if (input.ingredients.length === 0) {
     return { error: "This meal has no ingredients" };
   }
 
+  const { data: foodItems, error: foodItemsError } = await supabase
+    .from("food_items")
+    .select("id, calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g")
+    .in(
+      "id",
+      input.ingredients.map((ing) => ing.foodItemId),
+    );
+
+  if (foodItemsError) return { error: foodItemsError.message };
+
+  const foodItemsById = new Map((foodItems ?? []).map((item) => [item.id, item]));
   const logGroupId = crypto.randomUUID();
-  const rows = ingredients.map((ingredient) => {
-    const foodItem = ingredient.food_items as unknown as FoodItemRow;
-    const quantityG = ingredient.quantity_g * input.servings;
-    const snapshot = snapshotFromFoodItem(foodItem, quantityG);
-    return {
-      user_id: user.id,
-      food_item_id: foodItem.id,
-      custom_meal_id: input.customMealId,
-      log_group_id: logGroupId,
-      meal_type: input.mealType,
-      quantity_g: quantityG,
-      logged_date: input.loggedDate,
-      ...snapshot,
-    };
-  });
+  let rows;
+  try {
+    rows = input.ingredients.map((ingredient) => {
+      const foodItem = foodItemsById.get(ingredient.foodItemId);
+      if (!foodItem) throw new Error("Food not found");
+      const snapshot = snapshotFromFoodItem(foodItem, ingredient.quantityG);
+      return {
+        user_id: user.id,
+        food_item_id: foodItem.id,
+        custom_meal_id: input.customMealId,
+        log_group_id: logGroupId,
+        meal_type: input.mealType,
+        quantity_g: ingredient.quantityG,
+        logged_date: input.loggedDate,
+        ...snapshot,
+      };
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to log meal" };
+  }
 
   const { error } = await supabase.from("food_logs").insert(rows);
   if (error) return { error: error.message };
 
-  redirect(`/meals?date=${input.loggedDate}`);
+  redirect(`/dashboard?date=${input.loggedDate}`);
 }
 
 export async function deleteLogGroup(logGroupId: string, loggedDate: string) {
@@ -204,7 +212,7 @@ export async function deleteLogGroup(logGroupId: string, loggedDate: string) {
   if (!user) redirect("/login");
 
   await supabase.from("food_logs").delete().eq("log_group_id", logGroupId);
-  redirect(`/meals?date=${loggedDate}`);
+  redirect(`/dashboard?date=${loggedDate}`);
 }
 
 export async function updateLogQuantity(formData: FormData) {
@@ -219,7 +227,7 @@ export async function updateLogQuantity(formData: FormData) {
   if (!user) redirect("/login");
 
   if (!logId || !quantityG || quantityG <= 0) {
-    redirect(loggedDate ? `/meals?date=${loggedDate}` : "/meals");
+    redirect(loggedDate ? `/dashboard?date=${loggedDate}` : "/dashboard");
   }
 
   const { data: log } = await supabase
@@ -237,5 +245,5 @@ export async function updateLogQuantity(formData: FormData) {
       .eq("id", logId);
   }
 
-  redirect(`/meals?date=${loggedDate}`);
+  redirect(`/dashboard?date=${loggedDate}`);
 }
