@@ -87,9 +87,11 @@ Not built: workouts (`/workouts` is a stub), no tests, no CI.
   or permanently add/remove an ingredient from it — only delete individual
   logged instances. Would need an edit page for the template itself.
 - **No confirmation on delete.** The "Delete" button on a logged entry
-  ([src/app/dashboard/page.tsx](src/app/dashboard/page.tsx)) fires immediately,
-  no "are you sure." Low risk (nothing else depends on food logs), but worth a
-  confirm dialog if this becomes a real product.
+  ([src/app/dashboard/log-entry-card.tsx](src/app/dashboard/log-entry-card.tsx) —
+  entries are read-only by default now, Delete only appears after clicking
+  "Edit") fires immediately once clicked, no "are you sure." Low risk (nothing
+  else depends on food logs), but worth a confirm dialog if this becomes a
+  real product.
 - **No macro targets, only a calorie target.** Onboarding never asked for a
   macro split, so the day view shows protein/carb/fat totals with nothing to
   compare them against. Intentional (didn't want to fabricate targets nobody
