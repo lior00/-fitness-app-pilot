@@ -9,8 +9,8 @@ Working: signup/login/logout, onboarding (region + body metrics → TDEE/target
 calories), dashboard (calendar + selected-day summary + entries, all one page),
 calorie tracking (search USDA/Israeli-MoH/Open Food Facts, log single foods or
 custom meals with per-ingredient weights, recent-foods quick-add), settings
-(food region + units). Not built: workouts (`/workouts` is a stub), no tests,
-no CI.
+(food region, units, goal + calorie surplus/deficit, manual TDEE override).
+Not built: workouts (`/workouts` is a stub), no tests, no CI.
 
 ## Known issues / risks
 
@@ -138,7 +138,13 @@ Two are worth calling out specifically:
   (mentioned in the original schema review, never built) plus a trend-smoothing
   algorithm and a minimum-data threshold before adjusting (2-4 weeks, per their
   public docs) — a real project, not a quick add. Worth doing eventually since
-  static formulas can be off 15-25% for a given individual.
+  static formulas can be off 15-25% for a given individual — confirmed firsthand,
+  not just theoretical: the 3-formula average gave ~2655 kcal for a real user
+  whose true maintenance is ~2400. Shipped a manual override in the meantime
+  (a "Maintenance calories" field in Settings, [src/app/settings/settings-form.tsx](src/app/settings/settings-form.tsx),
+  validated by `isValidManualTdee` in [src/lib/tdee.ts](src/lib/tdee.ts)) so the
+  formula estimate can be corrected immediately without waiting on this bigger
+  project.
 - **Barcode scanning.** Open Food Facts has a dedicated barcode-lookup endpoint
   (`GET https://world.openfoodfacts.org/api/v2/product/{barcode}.json`) that's
   separate from the text-search endpoint we use today

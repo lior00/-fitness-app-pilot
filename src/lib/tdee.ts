@@ -49,11 +49,18 @@ export const ACTIVITY_LEVEL_OPTIONS: {
   },
 ];
 
-const GOAL_CALORIE_DELTA: Record<Goal, number> = {
+// Starting point only — the actual adjustment is user-controlled (see
+// CalorieAdjustmentStepper), stored in profiles.calorie_adjustment. These are
+// just sensible defaults to prefill that control with.
+export const DEFAULT_CALORIE_ADJUSTMENT: Record<Goal, number> = {
   cut: -500,
   maintain: 0,
   bulk: 300,
 };
+
+export const CALORIE_ADJUSTMENT_STEP = 50;
+export const CALORIE_ADJUSTMENT_MAGNITUDE_MIN = 100;
+export const CALORIE_ADJUSTMENT_MAGNITUDE_MAX = 1000;
 
 // BMR is averaged across three formulas to smooth out each one's individual
 // bias, rather than relying on a single equation.
@@ -101,6 +108,32 @@ export function calculateTdee(bmr: number, activityLevel: ActivityLevel): number
   return Math.round(bmr * ACTIVITY_MULTIPLIERS[activityLevel]);
 }
 
-export function calculateTargetCalories(tdee: number, goal: Goal): number {
-  return tdee + GOAL_CALORIE_DELTA[goal];
+export function calculateTargetCalories(tdee: number, calorieAdjustment: number): number {
+  return tdee + calorieAdjustment;
+}
+
+export function isValidCalorieAdjustment(goal: Goal, calorieAdjustment: number): boolean {
+  if (goal === "maintain") return calorieAdjustment === 0;
+  const magnitude = Math.abs(calorieAdjustment);
+  const sign = goal === "cut" ? -1 : 1;
+  return (
+    Math.sign(calorieAdjustment) === sign &&
+    magnitude >= CALORIE_ADJUSTMENT_MAGNITUDE_MIN &&
+    magnitude <= CALORIE_ADJUSTMENT_MAGNITUDE_MAX &&
+    magnitude % CALORIE_ADJUSTMENT_STEP === 0
+  );
+}
+
+// Formula-derived TDEE can miss an individual's real metabolism. These bounds
+// just guard against garbage input for a manual override — they're not a
+// claim about what's a "normal" TDEE.
+export const MANUAL_TDEE_MIN = 800;
+export const MANUAL_TDEE_MAX = 6000;
+
+export function isValidManualTdee(tdeeCalories: number): boolean {
+  return (
+    Number.isInteger(tdeeCalories) &&
+    tdeeCalories >= MANUAL_TDEE_MIN &&
+    tdeeCalories <= MANUAL_TDEE_MAX
+  );
 }

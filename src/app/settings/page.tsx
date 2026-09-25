@@ -19,7 +19,7 @@ export default async function SettingsPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("food_region, unit_preference")
+    .select("food_region, unit_preference, goal, calorie_adjustment, tdee_calories")
     .eq("id", user.id)
     .single();
 
@@ -33,7 +33,7 @@ export default async function SettingsPage({
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Settings</h1>
           <p className="text-sm text-neutral-500">
-            Food data source and preferred units.
+            Food data source, units, and calorie goal.
           </p>
         </div>
 
@@ -46,6 +46,9 @@ export default async function SettingsPage({
         <SettingsForm
           initialFoodRegion={(profile?.food_region as "us" | "il") ?? "us"}
           initialUnitPreference={(profile?.unit_preference as "metric" | "imperial") ?? "metric"}
+          initialGoal={(profile?.goal as "cut" | "maintain" | "bulk") ?? "maintain"}
+          initialCalorieAdjustment={profile?.calorie_adjustment ?? 0}
+          initialTdeeCalories={profile?.tdee_calories ?? 0}
         />
       </div>
     </main>

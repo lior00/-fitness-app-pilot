@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidCalorieAdjustment } from "@/lib/tdee";
 
 export const genderSchema = z.enum(["male", "female"]);
 export const activityLevelSchema = z.enum([
@@ -25,6 +26,7 @@ export const onboardingSchema = z
     weightLbs: z.coerce.number().min(1).max(900).optional(),
     activityLevel: activityLevelSchema,
     goal: goalSchema,
+    calorieAdjustment: z.coerce.number().int(),
   })
   .superRefine((data, ctx) => {
     if (data.unitSystem === "metric") {
@@ -41,6 +43,14 @@ export const onboardingSchema = z
       if (!data.weightLbs) {
         ctx.addIssue({ code: "custom", message: "Weight is required", path: ["weightLbs"] });
       }
+    }
+
+    if (!isValidCalorieAdjustment(data.goal, data.calorieAdjustment)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Invalid calorie adjustment",
+        path: ["calorieAdjustment"],
+      });
     }
   });
 

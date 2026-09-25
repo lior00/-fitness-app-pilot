@@ -29,7 +29,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Onboar
   const { heightCm, weightKg } = resolveMetrics(data);
   const bmr = calculateBmr(data.gender, weightKg, heightCm, data.age);
   const tdeeCalories = calculateTdee(bmr, data.activityLevel);
-  const targetCalories = calculateTargetCalories(tdeeCalories, data.goal);
+  const targetCalories = calculateTargetCalories(tdeeCalories, data.calorieAdjustment);
 
   const { error } = await supabase
     .from("profiles")
@@ -42,6 +42,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Onboar
       unit_preference: data.unitSystem,
       activity_level: data.activityLevel,
       goal: data.goal,
+      calorie_adjustment: data.calorieAdjustment,
       tdee_calories: tdeeCalories,
       target_calories: targetCalories,
       onboarding_completed_at: new Date().toISOString(),

@@ -7,7 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ACTIVITY_LEVEL_OPTIONS, type ActivityLevel, type Gender, type Goal } from "@/lib/tdee";
+import { CalorieAdjustmentStepper } from "@/components/calorie-adjustment-stepper";
+import {
+  ACTIVITY_LEVEL_OPTIONS,
+  DEFAULT_CALORIE_ADJUSTMENT,
+  type ActivityLevel,
+  type Gender,
+  type Goal,
+} from "@/lib/tdee";
 import { completeOnboarding } from "./actions";
 
 type UnitSystem = "metric" | "imperial";
@@ -25,6 +32,7 @@ type FormState = {
   weightLbs: string;
   activityLevel: ActivityLevel | undefined;
   goal: Goal | undefined;
+  calorieAdjustment: number;
 };
 
 const INITIAL_STATE: FormState = {
@@ -39,6 +47,7 @@ const INITIAL_STATE: FormState = {
   weightLbs: "",
   activityLevel: undefined,
   goal: undefined,
+  calorieAdjustment: 0,
 };
 
 const STEPS = [
@@ -107,6 +116,10 @@ export function OnboardingWizard() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function selectGoal(goal: Goal) {
+    setForm((prev) => ({ ...prev, goal, calorieAdjustment: DEFAULT_CALORIE_ADJUSTMENT[goal] }));
+  }
+
   function canAdvance(): boolean {
     switch (step) {
       case 0:
@@ -149,6 +162,7 @@ export function OnboardingWizard() {
         weightLbs: form.weightLbs ? (form.weightLbs as unknown as number) : undefined,
         activityLevel: form.activityLevel!,
         goal: form.goal!,
+        calorieAdjustment: form.calorieAdjustment,
       });
       if (result?.error) {
         setError(result.error);
@@ -317,16 +331,25 @@ export function OnboardingWizard() {
       )}
 
       {step === 4 && (
-        <div className="space-y-3">
-          {GOAL_OPTIONS.map((option) => (
-            <OptionCard
-              key={option.value}
-              selected={form.goal === option.value}
-              title={option.label}
-              description={option.description}
-              onSelect={() => update("goal", option.value)}
+        <div className="space-y-4">
+          <div className="space-y-3">
+            {GOAL_OPTIONS.map((option) => (
+              <OptionCard
+                key={option.value}
+                selected={form.goal === option.value}
+                title={option.label}
+                description={option.description}
+                onSelect={() => selectGoal(option.value)}
+              />
+            ))}
+          </div>
+          {form.goal && (
+            <CalorieAdjustmentStepper
+              goal={form.goal}
+              value={form.calorieAdjustment}
+              onChange={(value) => update("calorieAdjustment", value)}
             />
-          ))}
+          )}
         </div>
       )}
 
